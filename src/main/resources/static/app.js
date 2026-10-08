@@ -13,6 +13,9 @@
   var DEFAULT_PRESET_DAYS = 30;
   var LATE_LIMIT = 20;
   var SVG_NS = 'http://www.w3.org/2000/svg';
+  var THEMES = ['dark', 'light'];
+  var DEFAULT_THEME = 'dark';
+  var THEME_STORAGE_KEY = 'ops-dashboard-theme';
 
   // ---------- API client ----------
 
@@ -102,12 +105,68 @@
     return Math.round((parseIso(iso) - parseIso(today)) / 86400000);
   }
 
+  /** A saved theme name, or the default (dark) for anything missing or unknown. */
+  function resolveTheme(saved) {
+    return THEMES.indexOf(saved) === -1 ? DEFAULT_THEME : saved;
+  }
+
+  // ---------- Theme ----------
+
+  /*
+   * The theme is just data-theme on <html>; style.css holds every colour. The choice is
+   * kept in localStorage, which can throw (blocked storage), so failures only mean the
+   * choice is not remembered. The OS colour-scheme setting is deliberately not read.
+   */
+  function createTheme(document, button) {
+    var win = document.defaultView;
+
+    function readSaved() {
+      try {
+        return win.localStorage.getItem(THEME_STORAGE_KEY);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function save(theme) {
+      try {
+        win.localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (e) {
+        // Storage blocked: the theme still applies for this visit.
+      }
+    }
+
+    function apply(theme) {
+      var next = theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', theme);
+      button.textContent = next === 'light' ? 'Light theme' : 'Dark theme';
+      button.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+    }
+
+    function current() {
+      return resolveTheme(document.documentElement.getAttribute('data-theme'));
+    }
+
+    function toggle() {
+      var theme = current() === 'dark' ? 'light' : 'dark';
+      apply(theme);
+      save(theme);
+      return theme;
+    }
+
+    apply(resolveTheme(readSaved()));
+    button.addEventListener('click', toggle);
+
+    return { current: current, toggle: toggle };
+  }
+
   // ---------- App ----------
 
   function initApp(document, fetchImpl) {
     var api = createApi(fetchImpl);
 
     var els = {
+      themeToggle: document.getElementById('theme-toggle'),
       status: document.getElementById('status-line'),
       form: document.getElementById('range-form'),
       from: document.getElementById('range-from'),
@@ -124,6 +183,8 @@
       lateBody: document.getElementById('late-body'),
       vendors: document.getElementById('vendors-list')
     };
+
+    var theme = createTheme(document, els.themeToggle);
 
     var state = {
       today: null,
@@ -359,6 +420,7 @@
       state: state,
       load: load,
       selectPreset: selectPreset,
+      theme: theme,
       api: api
     };
   }
@@ -372,7 +434,9 @@
     formatMoney: formatMoney,
     barWidths: barWidths,
     applyPreset: applyPreset,
-    daysUntil: daysUntil
+    daysUntil: daysUntil,
+    resolveTheme: resolveTheme,
+    THEME_STORAGE_KEY: THEME_STORAGE_KEY
   };
 
   if (typeof module !== 'undefined') {
