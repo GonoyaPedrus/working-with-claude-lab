@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Marlowe &amp; Finch Operations</title>
   <link rel="stylesheet" href="style.css">
+  <!-- In <head> so a saved theme is applied before the first paint; the app itself starts on DOMContentLoaded. -->
+  <script src="app.js"></script>
 </head>
 <body>
   <div class="app">
@@ -13,6 +15,8 @@
         <h1 id="app-title">Marlowe &amp; Finch Operations</h1>
         <p id="app-subtitle" class="subtitle">Deliveries, tickets, revenue and renewals</p>
       </div>
+
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light theme">Light theme</button>
 
       <form id="range-form" class="range-form" autocomplete="off">
         <label class="range-field">From <input id="range-from" type="date" required></label>
@@ -81,7 +85,5 @@
       </section>
     </main>
   </div>
-
-  <script src="app.js"></script>
 </body>
 </html>

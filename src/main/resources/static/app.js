@@ -13,6 +13,9 @@
   var DEFAULT_PRESET_DAYS = 30;
   var LATE_LIMIT = 20;
   var SVG_NS = 'http://www.w3.org/2000/svg';
+  var THEMES = ['dark', 'light'];
+  var DEFAULT_THEME = 'dark';
+  var THEME_STORAGE_KEY = 'ops-dashboard-theme';
 
   // ---------- API client ----------
 
@@ -102,12 +105,85 @@
     return Math.round((parseIso(iso) - parseIso(today)) / 86400000);
   }
 
+  // ---------- Theme ----------
+
+  /*
+   * The theme is just data-theme on <html>; style.css holds every colour. The choice is
+   * kept in localStorage, which can throw (blocked storage), so failures only mean the
+   * choice is not remembered. The OS colour-scheme setting is deliberately not read.
+   */
+
+  /** A saved theme name, or the default (dark) for anything missing or unknown. */
+  function resolveTheme(saved) {
+    return THEMES.indexOf(saved) === -1 ? DEFAULT_THEME : saved;
+  }
+
+  /** The theme the toggle switches to from the given one. */
+  function nextTheme(theme) {
+    return THEMES[(THEMES.indexOf(resolveTheme(theme)) + 1) % THEMES.length];
+  }
+
+  function readSavedTheme(win) {
+    try {
+      return win.localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveTheme(win, theme) {
+    try {
+      win.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (e) {
+      // Storage blocked: the theme still applies for this visit.
+    }
+  }
+
+  /**
+   * Put the saved theme on <html>. app.js is loaded in <head>, and this runs as soon as
+   * it is, so a saved light theme is in place before the first paint (no dark flash).
+   */
+  function applySavedTheme(document) {
+    var theme = resolveTheme(readSavedTheme(document.defaultView));
+    document.documentElement.setAttribute('data-theme', theme);
+    return theme;
+  }
+
+  function createThemeToggle(document, button) {
+    var win = document.defaultView;
+
+    function current() {
+      return resolveTheme(document.documentElement.getAttribute('data-theme'));
+    }
+
+    function render() {
+      var next = nextTheme(current());
+      button.textContent = next.charAt(0).toUpperCase() + next.slice(1) + ' theme';
+      button.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+    }
+
+    function toggle() {
+      var theme = nextTheme(current());
+      document.documentElement.setAttribute('data-theme', theme);
+      saveTheme(win, theme);
+      render();
+      return theme;
+    }
+
+    applySavedTheme(document);
+    render();
+    button.addEventListener('click', toggle);
+
+    return { current: current, toggle: toggle };
+  }
+
   // ---------- App ----------
 
   function initApp(document, fetchImpl) {
     var api = createApi(fetchImpl);
 
     var els = {
+      themeToggle: document.getElementById('theme-toggle'),
       status: document.getElementById('status-line'),
       form: document.getElementById('range-form'),
       from: document.getElementById('range-from'),
@@ -124,6 +200,8 @@
       lateBody: document.getElementById('late-body'),
       vendors: document.getElementById('vendors-list')
     };
+
+    var theme = createThemeToggle(document, els.themeToggle);
 
     var state = {
       today: null,
@@ -359,6 +437,7 @@
       state: state,
       load: load,
       selectPreset: selectPreset,
+      theme: theme,
       api: api
     };
   }
@@ -372,13 +451,18 @@
     formatMoney: formatMoney,
     barWidths: barWidths,
     applyPreset: applyPreset,
-    daysUntil: daysUntil
+    daysUntil: daysUntil,
+    resolveTheme: resolveTheme,
+    nextTheme: nextTheme,
+    applySavedTheme: applySavedTheme,
+    THEME_STORAGE_KEY: THEME_STORAGE_KEY
   };
 
   if (typeof module !== 'undefined') {
     module.exports = exported;
   } else if (root.document) {
     root.OpsDashboard = exported;
+    applySavedTheme(root.document);
     root.document.addEventListener('DOMContentLoaded', function () {
       root.OpsDashboard.app = initApp(root.document, root.fetch.bind(root));
     });
