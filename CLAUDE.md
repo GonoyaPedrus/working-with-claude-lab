@@ -1,7 +1,4 @@
 # CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 - App: `ops-dashboard`, Marlowe & Finch's ops wall-screen. Java 17 / Spring Boot 3.2 backend in `src/main/java/com/marlowefinch/ops/` (plain SQL via Spring JDBC, no JPA, read-only `GET /api/*`); vanilla-JS frontend in `src/main/resources/static/` (`index.html`, `style.css`, `app.js`, no framework, no build step).
 - Run: `docker compose up -d db && ./mvnw spring-boot:run` (no Docker: `SPRING_PROFILES_ACTIVE=demo ./mvnw spring-boot:run`), then http://localhost:8080.
 - Test: `./mvnw test` (Java, 25) and `npm test` (Jest, 45); both must stay green. One test: `./mvnw test -Dtest=DashboardRepositoryTest`, `npx jest src/test/javascript/render.test.js`.
