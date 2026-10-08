@@ -171,7 +171,9 @@ async function loadApp(overrides) {
   const storage = (overrides && overrides.storage) || {};
   Object.keys(storage).forEach((key) => localStorage.setItem(key, storage[key]));
 
-  const api = createFakeApi(overrides);
+  const fixtureOverrides = Object.assign({}, overrides);
+  delete fixtureOverrides.storage;
+  const api = createFakeApi(fixtureOverrides);
   global.fetch = api.fetchImpl;
 
   jest.resetModules();

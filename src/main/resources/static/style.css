@@ -150,6 +150,11 @@ button:hover {
   background: var(--accent-hover);
 }
 
+/* The toggle sits top right, next to the title; the date form wraps below. */
+.header-text {
+  flex: 1 1 auto;
+}
+
 .theme-toggle {
   align-self: flex-start;
 }

@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const { loadApp, readIndexHtml, APP_PATH } = require('./setup/loadApp');
+const { loadApp, requireApp, readIndexHtml, APP_PATH } = require('./setup/loadApp');
 
 const CSS_PATH = path.join(path.dirname(APP_PATH), 'style.css');
-const STORAGE_KEY = 'ops-dashboard-theme';
+const STORAGE_KEY = requireApp().THEME_STORAGE_KEY;
 
 function currentTheme() {
   return document.documentElement.getAttribute('data-theme');
@@ -122,6 +122,18 @@ describe('theme toggle (TODO-231)', () => {
 
     expect(fs.readFileSync(CSS_PATH, 'utf8')).not.toMatch(/prefers-color-scheme/);
     expect(readIndexHtml()).toMatch(/<html[^>]*\sdata-theme="dark"/);
+  });
+
+  test('AC-3: a saved theme is applied from <head>, before the page body renders', () => {
+    const html = readIndexHtml();
+    const head = html.match(/<head>([\s\S]*)<\/head>/)[1];
+    expect(head).toMatch(/<script src="app\.js"><\/script>/);
+
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem(STORAGE_KEY, 'light');
+    expect(requireApp().applySavedTheme(document)).toBe('light');
+    expect(currentTheme()).toBe('light');
+    localStorage.clear();
   });
 
   test('AC-4: an unknown saved value falls back to dark', async () => {

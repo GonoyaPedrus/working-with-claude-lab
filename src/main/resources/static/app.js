@@ -105,11 +105,6 @@
     return Math.round((parseIso(iso) - parseIso(today)) / 86400000);
   }
 
-  /** A saved theme name, or the default (dark) for anything missing or unknown. */
-  function resolveTheme(saved) {
-    return THEMES.indexOf(saved) === -1 ? DEFAULT_THEME : saved;
-  }
-
   // ---------- Theme ----------
 
   /*
@@ -117,44 +112,66 @@
    * kept in localStorage, which can throw (blocked storage), so failures only mean the
    * choice is not remembered. The OS colour-scheme setting is deliberately not read.
    */
-  function createTheme(document, button) {
+
+  /** A saved theme name, or the default (dark) for anything missing or unknown. */
+  function resolveTheme(saved) {
+    return THEMES.indexOf(saved) === -1 ? DEFAULT_THEME : saved;
+  }
+
+  /** The theme the toggle switches to from the given one. */
+  function nextTheme(theme) {
+    return THEMES[(THEMES.indexOf(resolveTheme(theme)) + 1) % THEMES.length];
+  }
+
+  function readSavedTheme(win) {
+    try {
+      return win.localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveTheme(win, theme) {
+    try {
+      win.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (e) {
+      // Storage blocked: the theme still applies for this visit.
+    }
+  }
+
+  /**
+   * Put the saved theme on <html>. app.js is loaded in <head>, and this runs as soon as
+   * it is, so a saved light theme is in place before the first paint (no dark flash).
+   */
+  function applySavedTheme(document) {
+    var theme = resolveTheme(readSavedTheme(document.defaultView));
+    document.documentElement.setAttribute('data-theme', theme);
+    return theme;
+  }
+
+  function createThemeToggle(document, button) {
     var win = document.defaultView;
-
-    function readSaved() {
-      try {
-        return win.localStorage.getItem(THEME_STORAGE_KEY);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function save(theme) {
-      try {
-        win.localStorage.setItem(THEME_STORAGE_KEY, theme);
-      } catch (e) {
-        // Storage blocked: the theme still applies for this visit.
-      }
-    }
-
-    function apply(theme) {
-      var next = theme === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', theme);
-      button.textContent = next === 'light' ? 'Light theme' : 'Dark theme';
-      button.setAttribute('aria-label', 'Switch to ' + next + ' theme');
-    }
 
     function current() {
       return resolveTheme(document.documentElement.getAttribute('data-theme'));
     }
 
+    function render() {
+      var next = nextTheme(current());
+      button.textContent = next.charAt(0).toUpperCase() + next.slice(1) + ' theme';
+      button.setAttribute('aria-label', 'Switch to ' + next + ' theme');
+    }
+
     function toggle() {
-      var theme = current() === 'dark' ? 'light' : 'dark';
-      apply(theme);
-      save(theme);
+      var theme = nextTheme(current());
+      document.documentElement.setAttribute('data-theme', theme);
+      saveTheme(win, theme);
+      render();
       return theme;
     }
 
-    apply(resolveTheme(readSaved()));
+    applySavedTheme(document);
+    render();
     button.addEventListener('click', toggle);
 
     return { current: current, toggle: toggle };
@@ -184,7 +201,7 @@
       vendors: document.getElementById('vendors-list')
     };
 
-    var theme = createTheme(document, els.themeToggle);
+    var theme = createThemeToggle(document, els.themeToggle);
 
     var state = {
       today: null,
@@ -436,6 +453,8 @@
     applyPreset: applyPreset,
     daysUntil: daysUntil,
     resolveTheme: resolveTheme,
+    nextTheme: nextTheme,
+    applySavedTheme: applySavedTheme,
     THEME_STORAGE_KEY: THEME_STORAGE_KEY
   };
 
@@ -443,6 +462,7 @@
     module.exports = exported;
   } else if (root.document) {
     root.OpsDashboard = exported;
+    applySavedTheme(root.document);
     root.document.addEventListener('DOMContentLoaded', function () {
       root.OpsDashboard.app = initApp(root.document, root.fetch.bind(root));
     });
